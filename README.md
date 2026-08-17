@@ -58,8 +58,8 @@ scripts/
 └── check-week8.sh (validation check script)
 
 docs/
-├── acceptance-criteria.md (what "done" means for this sprint)
-├── environment-log.md (infrastructure decisions and state)
+├── week-08-acceptance-criteria.md (what "done" means for this sprint)
+├── week-08-environment-log.md (infrastructure decisions and state)
 ├── sprint-4-retrospective.md (what went well, what didn't)
 └── qa-report-4.md (validation results and rework needed)
 ```

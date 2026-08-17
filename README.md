@@ -23,6 +23,22 @@ In this lab, your team builds an automated backup pipeline for your PostgreSQL d
 - Week 7 complete: security controls applied, CI pipeline passing
 - Application is running with data in the database
 
+## Pulling This Week's Starter Content Into Your Team Repo
+
+This repo (`inet4031-week08`) is instructor-provided starter/reference content for
+Week 8, not something you clone standalone. Pull the pieces you need into your
+team's single repo:
+
+```bash
+git remote add week8 https://github.com/INET4031-Labs/inet4031-week08.git
+git fetch week8
+git checkout week8/main -- week-8 .github/workflows scripts docs
+git remote remove week8
+```
+
+Do this before you start editing `week-8/` locally, or your local changes will be
+silently overwritten by the checkout.
+
 ## Deliverables Checklist
 
 Before submitting, ensure you have:

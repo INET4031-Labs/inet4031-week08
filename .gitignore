@@ -1,0 +1,21 @@
+# Credentials and secrets - never commit these
+week-8/.env.backup
+week-8/.env
+.env
+.env.local
+.env.backup
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary directories
+/tmp/
+/temp/

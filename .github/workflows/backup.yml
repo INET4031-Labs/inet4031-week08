@@ -1,0 +1,80 @@
+name: Scheduled Database Backup
+
+on:
+  schedule:
+    # Run backup at 02:00 UTC daily
+    # To change the schedule, modify the cron expression below
+    # Format: minute hour day-of-month month day-of-week
+    # This example: "0 2 * * *" = 02:00 UTC every day
+    - cron: '0 2 * * *'
+
+  # Allow manual triggering from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install restic
+        run: sudo apt-get update && sudo apt-get install -y restic
+
+      - name: Configure restic environment
+        run: |
+          # TODO: These secrets must be set in GitHub Settings > Secrets > Actions
+          # Required secrets:
+          #   - RESTIC_REPOSITORY: s3:http://localhost:9000/backups (or your MinIO endpoint)
+          #   - RESTIC_PASSWORD: Your restic encryption password
+          #   - AWS_ACCESS_KEY_ID: MinIO root user (typically "backup")
+          #   - AWS_SECRET_ACCESS_KEY: MinIO root password
+          echo "Secrets configured from GitHub Actions secrets"
+
+      - name: Verify restic repository is accessible
+        env:
+          RESTIC_REPOSITORY: ${{ secrets.RESTIC_REPOSITORY }}
+          RESTIC_PASSWORD: ${{ secrets.RESTIC_PASSWORD }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: |
+          echo "Testing restic repository access..."
+          restic snapshots
+          echo "Repository is accessible"
+
+      - name: Apply retention policy and prune old snapshots
+        env:
+          RESTIC_REPOSITORY: ${{ secrets.RESTIC_REPOSITORY }}
+          RESTIC_PASSWORD: ${{ secrets.RESTIC_PASSWORD }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: |
+          echo "Applying retention policy: keep 7 daily, 4 weekly, 3 monthly snapshots"
+          # TODO: This runs successfully, but does not actually backup data while running
+          #       in GitHub Actions (the data directory is not available in this runner).
+          #       The actual backup must be triggered from the team container.
+          #       See Week 8 lab directions Part 3 for how to run the backup locally.
+          restic snapshots
+          restic forget --prune --keep-daily 7 --keep-weekly 4 --keep-monthly 3
+          echo "Retention policy applied"
+
+      - name: Log backup completion
+        run: echo "Backup verification and retention policy applied at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+# IMPORTANT NOTE:
+#
+# This workflow runs in GitHub Actions on ubuntu-latest, which does NOT have access to
+# your team container's PostgreSQL data volumes. The workflow performs these actions:
+#
+#   1. Verifies the restic repository is accessible from GitHub Actions
+#   2. Applies the retention policy to prune old snapshots
+#
+# The ACTUAL DATABASE BACKUP must be run separately on your team container by a Developer
+# or System Admin using this command:
+#
+#   source week-8/restic-env.sh
+#   restic backup /var/lib/docker/volumes/week-2_db-data/_data --tag postgres --tag automated
+#
+# In a production environment with restic running as a daemon or cron job on the application
+# server, the backup would happen automatically. For this lab, you will take the first backup
+# manually during Week 8, and GitHub Actions will handle retention policy enforcement.
+#
+# See Week 8 lab directions Part 2 Step 9 for the manual backup command.

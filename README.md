@@ -32,9 +32,12 @@ team's single repo:
 ```bash
 git remote add week8 https://github.com/INET4031-Labs/inet4031-week08.git
 git fetch week8
-git checkout week8/main -- week-8 .github/workflows scripts docs
+git checkout week8/main -- week-8 scripts docs
 git remote remove week8
 ```
+
+**`.github/workflows/backup.yml` is not shipped as a file in this repo.** You write it
+yourself, following the wiki step by step -- it is the actual exercise for this lab.
 
 Do this before you start editing `week-8/` locally, or your local changes will be
 silently overwritten by the checkout.

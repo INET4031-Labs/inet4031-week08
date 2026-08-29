@@ -157,7 +157,7 @@ if command -v restic &> /dev/null; then
     pass_check "restic is installed"
     restic version 2>&1 | head -1 | sed 's/^/  - /'
 else
-    fail_check "restic is not installed - install with: apt-get install -y restic"
+    fail_check "restic is not installed - install with: dnf install -y restic"
 fi
 echo ""
 

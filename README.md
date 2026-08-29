@@ -59,26 +59,24 @@ This week's work is distributed across all four roles. No single role can comple
 
 - **Scrum Master:** Sprint process, issue tracking, completion summary
 - **System Admin:** Environment health, Docker/MinIO configuration decisions, backup target placement
-- **QA:** Acceptance criteria definition, validation check script authoring, recovery drill verification
+- **QA:** Validation check script authoring, recovery drill verification, sign-off before submission
 - **Developer(s):** restic configuration, GitHub Actions workflow, runbook authoring
 
 ## File Structure
 
 ```
-week-08/
+week-8/
 ├── .env.backup (credentials - DO NOT COMMIT)
 ├── restic-env.sh (restic configuration template - commit without real secrets)
 └── runbook.md (recovery procedure and measured results)
 
 .github/workflows/
-└── backup.yml (scheduled backup workflow)
+└── backup.yml (scheduled backup workflow - written by you in this lab, not shipped)
 
 scripts/
 └── check-week8.sh (validation check script)
 
 docs/
-├── week-08-acceptance-criteria.md (what "done" means for this sprint)
-├── week-08-environment-log.md (infrastructure decisions and state)
 ├── sprint-4-retrospective.md (what went well, what didn't)
 └── qa-report-4.md (validation results and rework needed)
 ```

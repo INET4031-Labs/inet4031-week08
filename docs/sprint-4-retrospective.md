@@ -1,141 +1,169 @@
-# Sprint 4 Retrospective
+# QA Report: Sprint 4 Week 8
 
-**Written by:** Scrum Master at sprint close
+**Owned by:** QA
 
-**Purpose:** Reflect on what went well, what could improve, and what changes to make for Sprint 5.
+This report documents the results of validation testing at the end of the async week. It includes check script results, acceptance criteria verification, and any rework required before marking deliverables complete.
 
----
-
-## Sprint 4 Overview
-
-**Sprint:** 4 (Weeks 7-8)
-**Scrum Master:** [Enter your name]
-**Sprint Close Date:** [YYYY-MM-DD]
-
-This sprint covered two weeks: Week 7 (security controls and CI pipeline) and Week 8 (backup pipeline and recovery verification).
+This file is completed after MinIO is provisioned, restic backups are configured with a retention policy, the scheduled GitHub Actions workflow is committed, and the recovery drill has been run end to end with a measured RTO.
 
 ---
 
-## What Went Well
+## Validation Check Results
 
-[TODO: For each area below, describe what your team executed smoothly:]
+### Check 1: MinIO Is Running
 
-### Communication and Coordination
+**Test:** Run `docker ps --filter name=minio --format "{{.Status}}"`
 
-- How effectively did the team communicate during the async week?
-- Were blockers identified and resolved quickly?
-- Did all roles understand their responsibilities?
+**Expected:** `Up X minutes`
 
-### Technical Implementation
+**Actual Result:**
+```
+TODO: Paste the actual output
+```
 
-- Which parts of Week 7 and Week 8 went faster than expected?
-- Were there any technical breakthroughs or clever solutions?
-- Did the team complete the work on or ahead of schedule?
+**Status:** TODO: [ ] Pass [ ] Fail
 
-### Process and Sprints
-
-- Did the sprint board stay current throughout the week?
-- Were standup check-ins helpful or burdensome?
-- Did the team follow the sprint structure from the lab directions?
+**Notes:** If not running, was it started with the exact credentials in `week-8/.env.backup`?
 
 ---
 
-## What Did Not Go Well
+### Check 2: At Least One restic Snapshot Exists
 
-[TODO: For each area where the team faced challenges, describe the situation and root cause:]
+**Test:** Run `source week-8/restic-env.sh && restic snapshots`
 
-### Communication and Coordination
+**Expected:** At least one snapshot row
 
-- Were there miscommunications between roles?
-- Did any team member feel unclear about what was expected?
-- Were there decisions that needed to be made but were delayed?
+**Actual Result:**
+```
+TODO: Paste the actual output
+```
 
-### Technical Challenges
+**Status:** TODO: [ ] Pass [ ] Fail
 
-- Which parts of Week 7 or Week 8 took longer than expected?
-- Were there failed attempts or rework cycles?
-- Did the environment behave unexpectedly?
-
-### Process Issues
-
-- Did the sprint board fall behind?
-- Were there tasks that were not assigned or claimed?
-- Did the check-in schedule work for your team, or was it too frequent/infrequent?
+**Notes:** `restic-env.sh` alone isn't enough -- `AWS_SECRET_ACCESS_KEY` there references `${MINIO_ROOT_PASSWORD}`, which only exists after also sourcing `week-8/.env.backup` first.
 
 ---
 
-## Specific Metrics from Sprint 4
+### Check 3: Recovery Drill Succeeded
 
-[TODO: Use these questions to reflect on measurable outcomes:]
+**Test:** Compare the row count recorded before the drill (Step 15) to the row count after recovery (Step 22)
 
-- How many GitHub issues were opened? How many closed?
-- How many commits were made? What was the distribution across team members?
-- How many pull request reviews happened? Were they timely?
-- Did Week 8's recovery drill succeed on the first attempt? If not, how many iterations?
-- What was the measured RTO in the recovery drill? Did it match expectations?
+**Expected:** Post-restore count matches pre-drill count
 
----
+**Actual Result:**
+```
+TODO: Pre-drill count: ___
+TODO: Post-restore count: ___
+```
 
-## One Process Change for Sprint 5
+**Status:** TODO: [ ] Pass [ ] Fail
 
-[TODO: Choose ONE thing the team will do differently in Sprint 5. Make it specific and actionable.]
-
-Current approach (Sprint 4): [Describe what you did this sprint]
-
-Proposed change (Sprint 5): [What will you do differently?]
-
-Rationale: [Why do you expect this change to improve the sprint?]
-
-How to measure success: [What will you look for to know if this change worked?]
+**Notes:** If the count came back as `0` instead of matching, the restored data was likely never copied from `/tmp/restore` back into the live Docker volume (Step 20a) before restarting the stack -- Flask's own `CREATE TABLE IF NOT EXISTS` will silently recreate an empty table on startup, which looks like a successful recovery but isn't.
 
 ---
 
-## Role-Specific Reflections
+### Check 4: Check Script Passes
 
-### Scrum Master
+**Test:** Run `chmod +x ./scripts/check-week8.sh` then `./scripts/check-week8.sh`
 
-- Did the sprint board stay current and reflect actual progress?
-- Were roles clear and understood from the beginning?
-- What would make the next sprint board more useful?
+**Expected:** All checks pass with exit code 0
 
-### System Admin
+**Actual Result:**
+```
+TODO: Paste the full output of the check script
+```
 
-- Was the environment stable throughout the sprint?
-- Did any infrastructure decisions prove wise or problematic in retrospect?
-- What monitoring or documentation would have helped?
+**Status:** TODO: [ ] Pass [ ] Fail
 
-### QA
-
-- Were acceptance criteria clear and useful during development?
-- Did the check script catch all the issues it was meant to catch?
-- What acceptance criteria were hard to verify? How would you improve them?
-
-### Developer(s)
-
-- What was the hardest part of implementing Week 7 and Week 8?
-- Were there any design decisions you would reconsider?
-- Did code review feedback help? Was there enough review, or too much?
+**Notes:** This script cannot verify the recovery drill itself (Check 3) -- that's confirmed manually and recorded in the Google Doc and runbook.
 
 ---
 
-## Questions for the Team to Discuss
+## Acceptance Criteria Verification
 
-[TODO: Answer these as a group in a sync meeting or async in the team channel:]
+Review the criteria below for each part of this week's deliverables. For each criterion, record whether it was met:
 
-1. Week 8 required a recovery drill. Did you find that hands-on practice valuable, or was it stressful? Why?
-2. The backup pipeline runs automatically on GitHub Actions. Did this feel like "real" infrastructure work, or did it feel less tangible than Week 7's security controls? Why?
-3. Looking back at Week 7 and Week 8 together, which was harder: securing the application, or building the backup pipeline? What made it harder?
-4. If a data loss happened in production tomorrow, how confident is the team in the recovery procedure? Would anything in the runbook need to change based on what you learned?
+### Part 1: Provision MinIO
+
+TODO: [ ] `week-8/.env.backup` created with `MINIO_ROOT_USER`/`MINIO_ROOT_PASSWORD`, added to `.gitignore`
+TODO: [ ] MinIO container started and running persistently, ports 9000/9001 exposed
+TODO: [ ] `backups` bucket created (via a single combined `docker run` session -- two separate `docker run --rm` calls will not share an `mc` alias between them)
+
+### Part 2: Configure restic Backups
+
+TODO: [ ] `week-8/restic-env.sh` created with `RESTIC_REPOSITORY`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `RESTIC_PASSWORD`
+TODO: [ ] restic repository initialized (`restic init`)
+TODO: [ ] At least one test backup taken with `sudo -E restic backup /var/lib/docker/volumes/week-2_db-data/_data ...` (`sudo -E` is required -- the volume path is root-owned, and `-E` preserves the credentials `restic-env.sh` exported)
+TODO: [ ] Retention policy applied (`restic forget --prune --keep-daily 7 --keep-weekly 4 --keep-monthly 3`)
+
+### Part 3: Automated Backups via GitHub Actions
+
+TODO: [ ] `.github/workflows/backup.yml` committed with a daily cron trigger and `workflow_dispatch`
+TODO: [ ] `RESTIC_REPOSITORY`, `RESTIC_PASSWORD`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` stored as GitHub Actions secrets
+TODO: [ ] Workflow manually triggered; screenshot captured of the run **failing** at `restic snapshots` with a connection-refused error -- this is the expected, correct result. `RESTIC_REPOSITORY` points at `http://localhost:9000`, which only resolves to your team's own machine locally; a GitHub-hosted runner has no path to reach it. A green checkmark here would actually indicate something is misconfigured, not the reverse.
+
+### Part 4: Recovery Drill
+
+TODO: [ ] Week 2 Compose stack running before starting the drill (`docker compose -f week-2/docker-compose.yml up -d`)
+TODO: [ ] Pre-drill row count recorded (Step 15)
+TODO: [ ] Fresh pre-drill backup taken with `sudo -E` (Step 16)
+TODO: [ ] `incidents` table dropped; `curl http://localhost:8080/incidents` (not `8081` -- that's the separate Kubernetes-deployed app, untouched by anything in this week) confirmed an error response (Steps 17-18)
+TODO: [ ] `flask`, `nginx`, **and `db`** all stopped before restoring (Step 19 + 20a -- `db` must be stopped too, since its live data files can't be safely replaced while Postgres has them open)
+TODO: [ ] Backup restored to `/tmp/restore` (Step 20), then explicitly copied back into the live Docker volume (Step 20a) -- restoring to the staging path alone does not update the live volume
+TODO: [ ] Stack restarted; post-restore row count matches pre-drill count (Steps 21-22)
+TODO: [ ] RTO measured and recorded, compared against the 15-minute target (Step 23)
 
 ---
 
-## Sprint Close Checklist
+## Deliverables Verification
 
-Before submitting the retrospective, verify:
+### Required Files
 
-- [ ] Scrum Master has closed all Sprint 4 issues on the board
-- [ ] All Sprint 4 work is committed to the repository
-- [ ] Environment log reflects the final state of the infrastructure
-- [ ] QA report is complete with check script results
-- [ ] Google Doc has been updated with all reflection question answers
-- [ ] Team has discussed the "one process change" and agrees on it
+TODO: [ ] `week-8/restic-env.sh` committed (credentials placeholdered or omitted, not real secrets)
+TODO: [ ] `.github/workflows/backup.yml` committed
+TODO: [ ] `week-8/runbook.md` committed using the required format (Symptom, Root Cause, Fix, Measured Before/After)
+TODO: [ ] `scripts/check-week8.sh` present and runs clean
+
+### GitHub Repository
+
+TODO: [ ] All changes pushed to the main branch
+TODO: [ ] No real MinIO/restic credentials appear anywhere in git history
+
+### Google Doc
+
+TODO: [ ] Screenshot of `restic snapshots` showing at least one snapshot is attached
+TODO: [ ] Screenshot of the application error after `DROP TABLE` is attached
+TODO: [ ] Screenshot of the application returning the correct row count after restore is attached
+TODO: [ ] Screenshot of the backup workflow failing at `restic snapshots` (connection refused) is attached, with the reachability discussion answered
+TODO: [ ] Screenshot of `./scripts/check-week8.sh` passing is attached
+TODO: [ ] Recovery drill results recorded: start time, end time, measured RTO, row count before and after
+TODO: [ ] Discussion answers recorded for Parts 1-4 (backup target failure domain, retention policy risk, RPO, RTO vs. target)
+TODO: [ ] Week 8 storage check recorded, compared to Week 7 baseline
+
+---
+
+## Rework Required
+
+If any validation checks or acceptance criteria failed, document the rework needed:
+
+**Issues Found:**
+```
+TODO: List any failures here
+```
+
+**Rework Plan:**
+```
+TODO: For each failure, describe the steps to fix it and who will do the work
+```
+
+**Re-validation Date:** TODO: When will rework be complete?
+
+---
+
+## Sign-Off
+
+**QA Name:** ______________________
+**Date Signed:** ______________________
+**Overall Status:** TODO: [ ] All Criteria Met [ ] Rework Required
+
+**Notes:** Any final observations about the sprint's technical quality and team coordination.

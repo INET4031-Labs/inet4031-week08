@@ -1,187 +1,169 @@
-# QA Report - Sprint 4
+# QA Report: Sprint 4 Week 8
 
-**Written by:** QA after validation checks are run
+**Owned by:** QA
 
-**Purpose:** Document what passed verification, what required rework, and what remains incomplete.
+This report documents the results of validation testing at the end of the async week. It includes check script results, acceptance criteria verification, and any rework required before marking deliverables complete.
+
+This file is completed after MinIO is provisioned, restic backups are configured with a retention policy, the scheduled GitHub Actions workflow is committed, and the recovery drill has been run end to end with a measured RTO.
 
 ---
 
-## Sprint 4 Validation Summary
+## Validation Check Results
 
-**Sprint:** 4 (Weeks 7-8)
-**QA Lead:** [Enter your name]
-**Report Date:** [YYYY-MM-DD]
-**Check Script Last Run:** [YYYY-MM-DD HH:MM UTC]
+### Check 1: MinIO Is Running
+
+**Test:** Run `docker ps --filter name=minio --format "{{.Status}}"`
+
+**Expected:** `Up X minutes`
+
+**Actual Result:**
+```
+TODO: Paste the actual output
+```
+
+**Status:** TODO: [ ] Pass [ ] Fail
+
+**Notes:** If not running, was it started with the exact credentials in `week-8/.env.backup`?
+
+---
+
+### Check 2: At Least One restic Snapshot Exists
+
+**Test:** Run `source week-8/restic-env.sh && restic snapshots`
+
+**Expected:** At least one snapshot row
+
+**Actual Result:**
+```
+TODO: Paste the actual output
+```
+
+**Status:** TODO: [ ] Pass [ ] Fail
+
+**Notes:** `restic-env.sh` alone isn't enough -- `AWS_SECRET_ACCESS_KEY` there references `${MINIO_ROOT_PASSWORD}`, which only exists after also sourcing `week-8/.env.backup` first.
+
+---
+
+### Check 3: Recovery Drill Succeeded
+
+**Test:** Compare the row count recorded before the drill (Step 15) to the row count after recovery (Step 22)
+
+**Expected:** Post-restore count matches pre-drill count
+
+**Actual Result:**
+```
+TODO: Pre-drill count: ___
+TODO: Post-restore count: ___
+```
+
+**Status:** TODO: [ ] Pass [ ] Fail
+
+**Notes:** If the count came back as `0` instead of matching, the restored data was likely never copied from `/tmp/restore` back into the live Docker volume (Step 20a) before restarting the stack -- Flask's own `CREATE TABLE IF NOT EXISTS` will silently recreate an empty table on startup, which looks like a successful recovery but isn't.
+
+---
+
+### Check 4: Check Script Passes
+
+**Test:** Run `chmod +x ./scripts/check-week8.sh` then `./scripts/check-week8.sh`
+
+**Expected:** All checks pass with exit code 0
+
+**Actual Result:**
+```
+TODO: Paste the full output of the check script
+```
+
+**Status:** TODO: [ ] Pass [ ] Fail
+
+**Notes:** This script cannot verify the recovery drill itself (Check 3) -- that's confirmed manually and recorded in the Google Doc and runbook.
 
 ---
 
 ## Acceptance Criteria Verification
 
-### MinIO Provisioning - PASS / FAIL / INCOMPLETE
+Review the criteria below for each part of this week's deliverables. For each criterion, record whether it was met:
 
-- [ ] MinIO container runs persistently
-- [ ] MinIO is accessible on ports 9000 and 9001
-- [ ] Backup bucket named `backups` exists
-- [ ] MinIO credentials are not in version control
+### Part 1: Provision MinIO
 
-**Evidence:** [TODO: Describe what you checked and the output]
+TODO: [ ] `week-8/.env.backup` created with `MINIO_ROOT_USER`/`MINIO_ROOT_PASSWORD`, added to `.gitignore`
+TODO: [ ] MinIO container started and running persistently, ports 9000/9001 exposed
+TODO: [ ] `backups` bucket created (via a single combined `docker run` session -- two separate `docker run --rm` calls will not share an `mc` alias between them)
 
-**Rework Needed (if any):** [TODO: What must be fixed before this is truly done?]
+### Part 2: Configure restic Backups
 
-### restic Configuration - PASS / FAIL / INCOMPLETE
+TODO: [ ] `week-8/restic-env.sh` created with `RESTIC_REPOSITORY`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `RESTIC_PASSWORD`
+TODO: [ ] restic repository initialized (`restic init`)
+TODO: [ ] At least one test backup taken with `sudo -E restic backup /var/lib/docker/volumes/week-2_db-data/_data ...` (`sudo -E` is required -- the volume path is root-owned, and `-E` preserves the credentials `restic-env.sh` exported)
+TODO: [ ] Retention policy applied (`restic forget --prune --keep-daily 7 --keep-weekly 4 --keep-monthly 3`)
 
-- [ ] restic is installed on the team container
-- [ ] restic repository is initialized
-- [ ] `restic-env.sh` is committed without real credentials
-- [ ] At least one snapshot exists
+### Part 3: Automated Backups via GitHub Actions
 
-**Evidence:** [TODO: Output from 'restic snapshots' command]
+TODO: [ ] `.github/workflows/backup.yml` committed with a daily cron trigger and `workflow_dispatch`
+TODO: [ ] `RESTIC_REPOSITORY`, `RESTIC_PASSWORD`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` stored as GitHub Actions secrets
+TODO: [ ] Workflow manually triggered; screenshot captured of the run **failing** at `restic snapshots` with a connection-refused error -- this is the expected, correct result. `RESTIC_REPOSITORY` points at `http://localhost:9000`, which only resolves to your team's own machine locally; a GitHub-hosted runner has no path to reach it. A green checkmark here would actually indicate something is misconfigured, not the reverse.
 
-**Rework Needed (if any):** [TODO: What troubleshooting was required?]
+### Part 4: Recovery Drill
 
-### Retention Policy - PASS / FAIL / INCOMPLETE
+TODO: [ ] Week 2 Compose stack running before starting the drill (`docker compose -f week-2/docker-compose.yml up -d`)
+TODO: [ ] Pre-drill row count recorded (Step 15)
+TODO: [ ] Fresh pre-drill backup taken with `sudo -E` (Step 16)
+TODO: [ ] `incidents` table dropped; `curl http://localhost:8080/incidents` (not `8081` -- that's the separate Kubernetes-deployed app, untouched by anything in this week) confirmed an error response (Steps 17-18)
+TODO: [ ] `flask`, `nginx`, **and `db`** all stopped before restoring (Step 19 + 20a -- `db` must be stopped too, since its live data files can't be safely replaced while Postgres has them open)
+TODO: [ ] Backup restored to `/tmp/restore` (Step 20), then explicitly copied back into the live Docker volume (Step 20a) -- restoring to the staging path alone does not update the live volume
+TODO: [ ] Stack restarted; post-restore row count matches pre-drill count (Steps 21-22)
+TODO: [ ] RTO measured and recorded, compared against the 15-minute target (Step 23)
 
-- [ ] Retention policy is defined (7 daily, 4 weekly, 3 monthly)
-- [ ] Policy is documented in the runbook
-- [ ] `restic forget --prune` has been executed at least once
+---
 
-**Evidence:** [TODO: Show the retention policy from the runbook]
+## Deliverables Verification
 
-**Rework Needed (if any):** [TODO: Was the policy correctly applied?]
+### Required Files
 
-### GitHub Actions Backup Workflow - PASS / FAIL / INCOMPLETE
+TODO: [ ] `week-8/restic-env.sh` committed (credentials placeholdered or omitted, not real secrets)
+TODO: [ ] `.github/workflows/backup.yml` committed
+TODO: [ ] `week-8/runbook.md` committed using the required format (Symptom, Root Cause, Fix, Measured Before/After)
+TODO: [ ] `scripts/check-week8.sh` present and runs clean
 
-- [ ] `.github/workflows/backup.yml` is committed and valid YAML
-- [ ] Workflow is scheduled for 02:00 UTC daily
-- [ ] All credentials are stored in GitHub Actions Secrets
-- [ ] Manual workflow trigger succeeds
+### GitHub Repository
 
-**Evidence:** [TODO: Screenshot of successful workflow run from GitHub Actions]
+TODO: [ ] All changes pushed to the main branch
+TODO: [ ] No real MinIO/restic credentials appear anywhere in git history
 
-**Rework Needed (if any):** [TODO: Did the workflow require troubleshooting?]
+### Google Doc
 
-### Recovery Drill - PASS / FAIL / INCOMPLETE
+TODO: [ ] Screenshot of `restic snapshots` showing at least one snapshot is attached
+TODO: [ ] Screenshot of the application error after `DROP TABLE` is attached
+TODO: [ ] Screenshot of the application returning the correct row count after restore is attached
+TODO: [ ] Screenshot of the backup workflow failing at `restic snapshots` (connection refused) is attached, with the reachability discussion answered
+TODO: [ ] Screenshot of `./scripts/check-week8.sh` passing is attached
+TODO: [ ] Recovery drill results recorded: start time, end time, measured RTO, row count before and after
+TODO: [ ] Discussion answers recorded for Parts 1-4 (backup target failure domain, retention policy risk, RPO, RTO vs. target)
+TODO: [ ] Week 8 storage check recorded, compared to Week 7 baseline
 
-- [ ] Pre-drill row count recorded
-- [ ] Table dropped and verified missing
-- [ ] Backup restored without errors
-- [ ] Post-restore row count matches pre-drill
-- [ ] Measured RTO recorded (should not exceed 15 minutes)
+---
 
-**Evidence:** 
+## Rework Required
 
-[TODO: Record the drill results:]
-- Pre-drill row count: ___________
-- Post-restore row count: ___________
-- Measured RTO: ___________ minutes
-- Expected RTO target: 15 minutes
+If any validation checks or acceptance criteria failed, document the rework needed:
 
-**Rework Needed (if any):** [TODO: Did the recovery require adjustments to the procedure?]
-
-### Runbook - PASS / FAIL / INCOMPLETE
-
-- [ ] `week-8/runbook.md` is committed
-- [ ] Runbook includes: symptom, root cause, fix, measured before/after
-- [ ] Runbook reflects actual drill results
-- [ ] Steps are clear and reproducible
-
-**Evidence:** [TODO: Does the runbook contain all required sections?]
-
-**Rework Needed (if any):** [TODO: Was the runbook unclear or incomplete?]
-
-### Check Script - PASS / FAIL / INCOMPLETE
-
-```bash
-./scripts/check-week8.sh
+**Issues Found:**
+```
+TODO: List any failures here
 ```
 
-**Output:**
+**Rework Plan:**
+```
+TODO: For each failure, describe the steps to fix it and who will do the work
+```
 
-[TODO: Paste the full output of the check script here]
-
-**Result:** [TODO: Did the script pass or fail?]
-
-**Rework Needed (if any):** [TODO: What errors did the script report?]
-
----
-
-## File Inventory
-
-[TODO: Verify all required files exist and are committed. Check the current state of the repo.]
-
-- [ ] `week-8/restic-env.sh` exists
-- [ ] `week-8/runbook.md` exists
-- [ ] `.github/workflows/backup.yml` exists
-- [ ] `scripts/check-week8.sh` exists
-- [ ] `.gitignore` includes `week-8/.env.backup`
-- [ ] No real credentials appear in any committed files
-
-**Inventory Issues:** [TODO: Note any missing files or credential leaks]
-
----
-
-## Screenshots Collected
-
-[TODO: Verify all required screenshots were captured. Copy filenames here.]
-
-The lab directions require these screenshots:
-
-- [ ] Screenshot 1: `restic snapshots` showing at least one snapshot
-- [ ] Screenshot 2: Application error after DROP TABLE
-- [ ] Screenshot 3: Application returning correct row count after restore
-- [ ] Screenshot 4: Backup workflow success in GitHub Actions
-- [ ] Screenshot 5: `./scripts/check-week8.sh` passing
-
-**Screenshot Issues:** [TODO: Note any screenshots that are missing or unclear]
-
----
-
-## Pre-Existing Issues from Week 7
-
-[TODO: Did any Week 7 deliverables need rework or attention during Week 8? Note them here.]
-
-- Issue: [If any]
-- Impact on Week 8: [How did this affect the backup work?]
-- Resolution: [Was it fixed, or is it still pending?]
-
----
-
-## Overall Verdict
-
-**Week 8 Sign-Off:** [TODO: Choose one]
-
-- [ ] **PASS** - All acceptance criteria met, check script passes, ready for Sprint 5
-- [ ] **PASS WITH MINOR REWORK** - One or two small issues need fixing; will retest after fix
-- [ ] **FAIL** - Significant rework required before Week 8 is complete
-
-**Summary for the team:** [TODO: Write a brief summary of what is blocking a "PASS" verdict, if applicable]
-
----
-
-## QA Questions Answered
-
-Before closing out QA, answer these questions in your own words:
-
-1. **MinIO Design Decision:** The backup target (MinIO) runs in the same team container as your application. What class of failure would destroy both your application data AND your backups simultaneously?
-
-   [TODO: Your answer]
-
-2. **Recovery Confidence:** How confident is the team that the documented recovery procedure will work in a real emergency? What gaps exist between the drill and a real failure?
-
-   [TODO: Your answer]
-
-3. **Retention Policy Risk:** If data corruption went undetected for 10 days, could your retention policy recover clean data?
-
-   [TODO: Your answer]
-
-4. **Backup Schedule RPO:** The backup workflow runs at 02:00 UTC daily. If a failure occurs at 23:00 UTC, how much data (in time) is at risk?
-
-   [TODO: Your answer]
+**Re-validation Date:** TODO: When will rework be complete?
 
 ---
 
 ## Sign-Off
 
-QA Lead: _________________________ Date: __________
+**QA Name:** ______________________
+**Date Signed:** ______________________
+**Overall Status:** TODO: [ ] All Criteria Met [ ] Rework Required
 
-Scrum Master (verifies rework completed): _________________________ Date: __________
+**Notes:** Any final observations about the sprint's technical quality and team coordination.

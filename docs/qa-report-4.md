@@ -1,14 +1,13 @@
 # QA Report: Sprint 4 Week 8
 
-**Owned by:** QA
+QA is responsible for running all validation checks and signing off before deliverables are submitted. This report documents the validation process.
 
-This report documents the results of validation testing at the end of the async week. It includes check script results, acceptance criteria verification, and any rework required before marking deliverables complete.
-
-This file is completed after MinIO is provisioned, restic backups are configured with a retention policy, the scheduled GitHub Actions workflow is committed, and the recovery drill has been run end to end with a measured RTO.
+**QA Team Member:** [Name]
+**Date Completed:** [Date]
 
 ---
 
-## Validation Check Results
+## Validation Checks
 
 ### Check 1: MinIO Is Running
 
@@ -142,28 +141,22 @@ TODO: [ ] Week 8 storage check recorded, compared to Week 7 baseline
 
 ---
 
-## Rework Required
+## Summary
 
-If any validation checks or acceptance criteria failed, document the rework needed:
+**Overall Status:** [ ] ALL CHECKS PASS [ ] SOME CHECKS FAIL
 
-**Issues Found:**
-```
-TODO: List any failures here
-```
+**Blockers:** [List any blockers that prevent submission]
 
-**Rework Plan:**
-```
-TODO: For each failure, describe the steps to fix it and who will do the work
-```
+**Corrective Actions Taken:** [List any fixes applied during QA]
 
-**Re-validation Date:** TODO: When will rework be complete?
+**QA Sign-Off:**
+
+By signing below, QA certifies that all required validation checks have been executed and all deliverables meet the acceptance criteria.
+
+**QA Signature:** _________________    **Date:** __________
 
 ---
 
-## Sign-Off
+## Notes for Sprint 5
 
-**QA Name:** ______________________
-**Date Signed:** ______________________
-**Overall Status:** TODO: [ ] All Criteria Met [ ] Rework Required
-
-**Notes:** Any final observations about the sprint's technical quality and team coordination.
+[Any observations or recommendations for the next sprint]

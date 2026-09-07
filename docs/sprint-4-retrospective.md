@@ -2,7 +2,7 @@
 
 **Owned by:** Scrum Master
 
-This file is completed at the end of the async week (Week 8). Review what your team shipped, what went well, what went poorly, and one specific process change for Sprint 4.
+This file is completed at the end of week 8. Review what your team shipped, what went well, what went poorly, and one specific process change for Sprint 5.
 
 ## What Went Well
 
@@ -14,7 +14,7 @@ TODO: What was difficult? What slowed you down? What surprised you?
 
 ## What We'll Do Differently Next Sprint
 
-TODO: Based on what you learned, name one specific process change or workflow improvement you will try in Sprint 4.
+TODO: Based on what you learned, name one specific process change or workflow improvement you will try in Sprint 5.
 
 ## Team Contributions
 

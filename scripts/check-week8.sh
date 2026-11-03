@@ -57,6 +57,12 @@ else
     check_fail "week-8/runbook.md not found"
 fi
 
+if [ -f "$REPO_ROOT/week-8/minio.yaml" ]; then
+    check_pass "week-8/minio.yaml exists"
+else
+    check_fail "week-8/minio.yaml not found"
+fi
+
 if [ -f "$REPO_ROOT/.github/workflows/backup.yml" ]; then
     check_pass ".github/workflows/backup.yml exists"
 else
@@ -76,10 +82,16 @@ else
     check_fail "week-8/.env.backup is not in .gitignore"
 fi
 
-if [ -f "$REPO_ROOT/week-8/restic-env.sh" ] && grep -q "changethispassword" "$REPO_ROOT/week-8/restic-env.sh"; then
-    check_pass "week-8/restic-env.sh still uses the placeholder RESTIC_PASSWORD (not a real committed secret)"
+if [ -f "$REPO_ROOT/week-8/restic-env.sh" ] && grep -Eq '(PASSWORD|SECRET_ACCESS_KEY)="?[A-Za-z0-9+/]{8,}' "$REPO_ROOT/week-8/restic-env.sh"; then
+    check_fail "week-8/restic-env.sh appears to contain a literal password - passwords belong in week-8/.env.backup only"
 else
-    check_warn "week-8/restic-env.sh does not contain the placeholder password - verify manually that no real secret was committed"
+    check_pass "week-8/restic-env.sh contains no literal passwords (they are read from week-8/.env.backup)"
+fi
+
+if git -C "$REPO_ROOT" ls-files --error-unmatch week-8/.env.backup &>/dev/null; then
+    check_fail "week-8/.env.backup is tracked by git - remove it with 'git rm --cached week-8/.env.backup'"
+else
+    check_pass "week-8/.env.backup is not tracked by git"
 fi
 
 # =========================================
@@ -125,26 +137,27 @@ else
 fi
 
 # =========================================
-# Check 5: MinIO Container Is Running
+# Check 5: MinIO Is Running in the Cluster
 # =========================================
 echo ""
-echo "Check 5: MinIO Container Is Running"
+echo "Check 5: MinIO Is Running in the Cluster"
 echo "-----------------------------------------"
 
-if command -v docker &> /dev/null; then
-    if docker ps --filter name=minio --quiet | grep -q .; then
-        check_pass "MinIO container is running"
-
-        if docker ps --filter name=minio --format "{{.Ports}}" | grep -q "9000"; then
-            check_pass "MinIO S3 API port 9000 is exposed"
-        else
-            check_fail "MinIO S3 API port 9000 is not exposed"
-        fi
+if command -v kubectl &> /dev/null; then
+    MINIO_READY=$(kubectl get pods -n backup -l app=minio -o jsonpath='{.items[0].status.containerStatuses[0].ready}' 2>/dev/null || true)
+    if [ "$MINIO_READY" = "true" ]; then
+        check_pass "MinIO pod is running and ready in the backup namespace"
     else
-        check_fail "MinIO container is not running"
+        check_fail "MinIO pod is not ready in the backup namespace (kubectl get pods -n backup)"
+    fi
+
+    if kubectl get service minio -n backup -o jsonpath='{.spec.ports[0].port}' 2>/dev/null | grep -q "9000"; then
+        check_pass "MinIO Service exposes port 9000"
+    else
+        check_fail "MinIO Service not found or not on port 9000 (kubectl get service -n backup)"
     fi
 else
-    check_fail "docker is not available"
+    check_fail "kubectl is not available"
 fi
 
 # =========================================

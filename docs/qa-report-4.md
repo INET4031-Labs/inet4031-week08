@@ -11,9 +11,9 @@ QA is responsible for running all validation checks and signing off before deliv
 
 ### Check 1: MinIO Is Running
 
-**Test:** Run `docker ps --filter name=minio --format "{{.Status}}"`
+**Test:** Run `kubectl get pods -n backup -l app=minio`
 
-**Expected:** `Up X minutes`
+**Expected:** one pod, `1/1 Running`
 
 **Actual Result:**
 ```
@@ -22,7 +22,7 @@ TODO: Paste the actual output
 
 **Status:** TODO: [ ] Pass [ ] Fail
 
-**Notes:** If not running, was it started with the exact credentials in `week-8/.env.backup`?
+**Notes:** If it is not running, check `kubectl describe pod -n backup -l app=minio`. A missing `minio-credentials` Secret (Step 3) is the most common cause.
 
 ---
 
@@ -39,7 +39,7 @@ TODO: Paste the actual output
 
 **Status:** TODO: [ ] Pass [ ] Fail
 
-**Notes:** `restic-env.sh` alone isn't enough -- `AWS_SECRET_ACCESS_KEY` there references `${MINIO_ROOT_PASSWORD}`, which only exists after also sourcing `week-8/.env.backup` first.
+**Notes:** `restic-env.sh` reads the passwords from `week-8/.env.backup` itself, so that file must exist on the VM. The MinIO port-forward from Step 5 must also be running, or restic reports a connection error.
 
 ---
 
@@ -57,7 +57,7 @@ TODO: Post-restore count: ___
 
 **Status:** TODO: [ ] Pass [ ] Fail
 
-**Notes:** If the count came back as `0` instead of matching, the restored data was likely never copied from `/tmp/restore` back into the live Docker volume (Step 20a) before restarting the stack -- Flask's own `CREATE TABLE IF NOT EXISTS` will silently recreate an empty table on startup, which looks like a successful recovery but isn't.
+**Notes:** If the count came back as `0` instead of matching, the restore in Step 21 most likely replayed an empty dump. Check `restic dump --tag pre-drill latest /statustracker.sql | wc -l` -- a count of `0` means the pre-drill backup itself was empty. Flask's own `CREATE TABLE IF NOT EXISTS` recreates an empty table when it starts, which can look like a successful recovery but isn't.
 
 ---
 
@@ -84,33 +84,35 @@ Review the criteria below for each part of this week's deliverables. For each cr
 
 ### Part 1: Provision MinIO
 
-TODO: [ ] `week-8/.env.backup` created with `MINIO_ROOT_USER`/`MINIO_ROOT_PASSWORD`, added to `.gitignore`
-TODO: [ ] MinIO container started and running persistently, ports 9000/9001 exposed
+TODO: [ ] `week-8/.env.backup` created with `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`, and `RESTIC_PASSWORD`, added to `.gitignore`
+TODO: [ ] `minio-credentials` Secret created in the `backup` namespace
+TODO: [ ] `week-8/minio.yaml` applied; MinIO pod `1/1 Running` in the `backup` namespace
+TODO: [ ] MinIO port-forward running on the team's assigned MinIO port
 TODO: [ ] `backups` bucket created (via a single combined `docker run` session -- two separate `docker run --rm` calls will not share an `mc` alias between them)
 
 ### Part 2: Configure restic Backups
 
-TODO: [ ] `week-8/restic-env.sh` created with `RESTIC_REPOSITORY`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `RESTIC_PASSWORD`
+TODO: [ ] `week-8/restic-env.sh` updated with the team's MinIO port, and contains no literal passwords
 TODO: [ ] restic repository initialized (`restic init`)
-TODO: [ ] At least one test backup taken with `sudo -E restic backup /var/lib/docker/volumes/week-2_db-data/_data ...` (`sudo -E` is required -- the volume path is root-owned, and `-E` preserves the credentials `restic-env.sh` exported)
+TODO: [ ] At least one test backup taken by piping `kubectl exec deploy/db -- pg_dump ...` into `restic backup --stdin`, and `restic dump latest /statustracker.sql | wc -l` shows a non-zero line count
 TODO: [ ] Retention policy applied (`restic forget --prune --keep-daily 7 --keep-weekly 4 --keep-monthly 3`)
 
 ### Part 3: Automated Backups via GitHub Actions
 
 TODO: [ ] `.github/workflows/backup.yml` committed with a daily cron trigger and `workflow_dispatch`
 TODO: [ ] `RESTIC_REPOSITORY`, `RESTIC_PASSWORD`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` stored as GitHub Actions secrets
-TODO: [ ] Workflow manually triggered; screenshot captured of the run **failing** at `restic snapshots` with a connection-refused error -- this is the expected, correct result. `RESTIC_REPOSITORY` points at `http://localhost:9000`, which only resolves to your team's own machine locally; a GitHub-hosted runner has no path to reach it. A green checkmark here would actually indicate something is misconfigured, not the reverse.
+TODO: [ ] Workflow manually triggered; screenshot captured of the run **failing** at `restic snapshots` with a connection-refused error -- this is the expected, correct result. `RESTIC_REPOSITORY` points at `http://localhost:<your MinIO port>`, which only resolves to your team's own machine locally; a GitHub-hosted runner has no path to reach it. A green checkmark here would actually indicate something is misconfigured, not the reverse.
 
 ### Part 4: Recovery Drill
 
-TODO: [ ] Week 2 Compose stack running before starting the drill (`docker compose -f week-2/docker-compose.yml up -d`)
-TODO: [ ] Pre-drill row count recorded (Step 15)
-TODO: [ ] Fresh pre-drill backup taken with `sudo -E` (Step 16)
-TODO: [ ] `incidents` table dropped; `curl http://localhost:8080/incidents` (not `8081` -- that's the separate Kubernetes-deployed app, untouched by anything in this week) confirmed an error response (Steps 17-18)
-TODO: [ ] `flask`, `nginx`, **and `db`** all stopped before restoring (Step 19 + 20a -- `db` must be stopped too, since its live data files can't be safely replaced while Postgres has them open)
-TODO: [ ] Backup restored to `/tmp/restore` (Step 20), then explicitly copied back into the live Docker volume (Step 20a) -- restoring to the staging path alone does not update the live volume
-TODO: [ ] Stack restarted; post-restore row count matches pre-drill count (Steps 21-22)
-TODO: [ ] RTO measured and recorded, compared against the 15-minute target (Step 23)
+TODO: [ ] Application healthy in the k3d cluster, MinIO port-forward running, and Flask replica count recorded before starting the drill
+TODO: [ ] Pre-drill row count recorded (Step 16)
+TODO: [ ] Fresh pre-drill backup taken with the `pre-drill` tag (Step 17)
+TODO: [ ] `incidents` table dropped; `curl http://localhost:<your Kubernetes port>/incidents` confirmed an error response (Steps 18-19)
+TODO: [ ] Flask scaled to 0 replicas before restoring (Step 20); `db` stays running, since a SQL restore goes through Postgres itself
+TODO: [ ] Pre-drill dump replayed into the database with `restic dump ... | kubectl exec -i deploy/db -- psql ...` (Step 21)
+TODO: [ ] Flask scaled back to its recorded replica count; post-restore row count matches pre-drill count (Steps 22-23)
+TODO: [ ] RTO measured and recorded, compared against the 15-minute target (Step 24)
 
 ---
 
@@ -118,14 +120,15 @@ TODO: [ ] RTO measured and recorded, compared against the 15-minute target (Step
 
 ### Required Files
 
-TODO: [ ] `week-8/restic-env.sh` committed (credentials placeholdered or omitted, not real secrets)
+TODO: [ ] `week-8/minio.yaml` committed
+TODO: [ ] `week-8/restic-env.sh` committed (MinIO port set, no passwords in it)
 TODO: [ ] `.github/workflows/backup.yml` committed
 TODO: [ ] `week-8/runbook.md` committed using the required format (Symptom, Root Cause, Fix, Measured Before/After)
 TODO: [ ] `scripts/check-week8.sh` present and runs clean
 
 ### GitHub Repository
 
-TODO: [ ] All changes pushed to the main branch
+TODO: [ ] All changes merged into `main` through a pull request
 TODO: [ ] No real MinIO/restic credentials appear anywhere in git history
 
 ### Google Doc
